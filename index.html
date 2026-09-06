@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHRONOS // 天象时序主题控制器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '"Noto Sans SC"', 'sans-serif'],
+                        serif: ['"Cinzel"', 'serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --transition-speed: 0.85s;
+            --transition-ease: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* 5-State Theming Design Tokens */
+        /* 1. Dawn (早晨) */
+        [data-theme="dawn"] {
+            --sky-from: #1c233e;
+            --sky-via: #e88a73;
+            --sky-to: #ffd699;
+            --ambient-bg: #f8f6f0;
+            --card-bg: rgba(255, 255, 255, 0.72);
+            --card-border: rgba(255, 180, 150, 0.4);
+            --text-primary: #2d2426;
+            --text-secondary: #7e6b6f;
+            --accent-glow: #ff9d76;
+            --accent-solid: #e76f51;
+            --sun-color: #ffe6aa;
+            --sun-glow: rgba(255, 214, 153, 0.8);
+            --sun-pos-x: 20%;
+            --sun-pos-y: 62%;
+            --stars-opacity: 0.15;
+            --badge-bg: rgba(231, 111, 81, 0.12);
+            --temp-val: "4500K";
+            --lux-val: "1,200 lx";
+        }
+
+        /* 2. Noon (午间) */
+        [data-theme="noon"] {
+            --sky-from: #1a73e8;
+            --sky-via: #4facfe;
+            --sky-to: #00f2fe;
+            --ambient-bg: #eef6fc;
+            --card-bg: rgba(255, 255, 255, 0.82);
+            --card-border: rgba(255, 255, 255, 0.8);
+            --text-primary: #0f2b48;
+            --text-secondary: #537597;
+            --accent-glow: #00c6ff;
+            --accent-solid: #0077ff;
+            --sun-color: #ffffff;
+            --sun-glow: rgba(255, 255, 255, 0.95);
+            --sun-pos-x: 50%;
+            --sun-pos-y: 18%;
+            --stars-opacity: 0;
+            --badge-bg: rgba(0, 119, 255, 0.12);
+            --temp-val: "6500K";
+            --lux-val: "68,000 lx";
+        }
+
+        /* 3. Sunset (夕阳) */
+        [data-theme="sunset"] {
+            --sky-from: #2c1654;
+            --sky-via: #c84e5b;
+            --sky-to: #f3904f;
+            --ambient-bg: #201525;
+            --card-bg: rgba(45, 26, 49, 0.75);
+            --card-border: rgba(243, 144, 79, 0.35);
+            --text-primary: #fff2ea;
+            --text-secondary: #d6abb4;
+            --accent-glow: #f3904f;
+            --accent-solid: #e85d04;
+            --sun-color: #ff5e36;
+            --sun-glow: rgba(243, 144, 79, 0.85);
+            --sun-pos-x: 78%;
+            --sun-pos-y: 65%;
+            --stars-opacity: 0.3;
+            --badge-bg: rgba(243, 144, 79, 0.18);
+            --temp-val: "2800K";
+            --lux-val: "850 lx";
+        }
+
+        /* 4. Dusk (傍晚) */
+        [data-theme="dusk"] {
+            --sky-from: #0f1123;
+            --sky-via: #2c204d;
+            --sky-to: #673ab7;
+            --ambient-bg: #110f1e;
+            --card-bg: rgba(28, 24, 48, 0.78);
+            --card-border: rgba(139, 92, 246, 0.3);
+            --text-primary: #ece8fa;
+            --text-secondary: #9d96b8;
+            --accent-glow: #9d4edd;
+            --accent-solid: #8a2be2;
+            --sun-color: #d1b3ff;
+            --sun-glow: rgba(157, 78, 221, 0.5);
+            --sun-pos-x: 88%;
+            --sun-pos-y: 82%;
+            --stars-opacity: 0.7;
+            --badge-bg: rgba(138, 43, 226, 0.2);
+            --temp-val: "3200K";
+            --lux-val: "80 lx";
+        }
+
+        /* 5. Night (夜间) */
+        [data-theme="night"] {
+            --sky-from: #030611;
+            --sky-via: #090e1f;
+            --sky-to: #131c38;
+            --ambient-bg: #07090e;
+            --card-bg: rgba(13, 18, 33, 0.82);
+            --card-border: rgba(56, 189, 248, 0.18);
+            --text-primary: #e6edf8;
+            --text-secondary: #748ba7;
+            --accent-glow: #38bdf8;
+            --accent-solid: #0ea5e9;
+            --sun-color: #e2f1ff;
+            --sun-glow: rgba(226, 241, 255, 0.9);
+            --sun-pos-x: 50%;
+            --sun-pos-y: 28%;
+            --stars-opacity: 1;
+            --badge-bg: rgba(14, 165, 233, 0.16);
+            --temp-val: "1800K";
+            --lux-val: "0.2 lx";
+        }
+
+        body {
+            background-color: var(--ambient-bg);
+            color: var(--text-primary);
+            transition: background-color var(--transition-speed) var(--transition-ease),
+                        color var(--transition-speed) var(--transition-ease);
+        }
+
+        .sky-canvas {
+            background: linear-gradient(175deg, var(--sky-from) 0%, var(--sky-via) 52%, var(--sky-to) 100%);
+            transition: background var(--transition-speed) var(--transition-ease);
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25),
+                        0 0 40px -10px var(--accent-glow);
+            transition: all var(--transition-speed) var(--transition-ease);
+        }
+
+        .glass-capsule {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+
+        /* Celestial Body Positioning */
+        .celestial-orb {
+            left: var(--sun-pos-x);
+            top: var(--sun-pos-y);
+            background: var(--sun-color);
+            box-shadow: 0 0 60px 20px var(--sun-glow), 0 0 120px 40px var(--sun-glow);
+            transform: translate(-50%, -50%);
+            transition: left var(--transition-speed) cubic-bezier(0.34, 1.3, 0.64, 1),
+                        top var(--transition-speed) cubic-bezier(0.34, 1.3, 0.64, 1),
+                        background var(--transition-speed) var(--transition-ease),
+                        box-shadow var(--transition-speed) var(--transition-ease),
+                        opacity 0.4s ease;
+        }
+
+        /* Horizon Arc Track */
+        .arc-path {
+            stroke-dasharray: 6 6;
+            animation: rotateDash 60s linear infinite;
+        }
+
+        @keyframes rotateDash {
+            to { stroke-dashoffset: -1000; }
+        }
+
+        /* Theme Morph Capsule Indicator */
+        .theme-pill-thumb {
+            transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1),
+                        width 0.3s ease;
+            box-shadow: 0 4px 20px -2px var(--accent-glow);
+        }
+
+        /* Star Dust Twinkle */
+        .starfield {
+            opacity: var(--stars-opacity);
+            transition: opacity var(--transition-speed) var(--transition-ease);
+        }
+
+        .halo-pulse {
+            animation: pulseGlow 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.18); opacity: 0.9; }
+        }
+
+        /* Realistic Moon Craters */
+        .moon-craters {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        [data-theme="night"] .moon-craters {
+            opacity: 0.4;
+        }
+
+        /* Active option typography and glow */
+        .time-btn.active {
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+        }
+
+        .time-btn.active svg {
+            filter: drop-shadow(0 0 8px currentColor);
+            transform: scale(1.15) translateY(-1px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-rose-500/30 overflow-x-hidden font-sans">
+
+    <!-- Atmospheric Top Dynamic Stage -->
+    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <!-- Sky Base Gradient -->
+        <div class="sky-canvas absolute inset-0"></div>
+
+        <!-- Twinkle Stars Layer -->
+        <div class="starfield absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none"></div>
+        <div class="starfield absolute inset-0 bg-[radial-gradient(#a5c9ff_1.5px,transparent_1.5px)] [background-size:64px_64px] opacity-70"></div>
+
+        <!-- Celestial Trajectory Curve Guide -->
+        <svg class="absolute top-[8%] left-[10%] w-[80%] h-[380px] pointer-events-none opacity-25" viewBox="0 0 1000 300" fill="none">
+            <path class="arc-path stroke-white/40" stroke-width="1.5" d="M 50,260 Q 500,20 950,260" />
+        </svg>
+
+        <!-- Celestial Body (Sun / Moon Morph) -->
+        <div id="celestialBody" class="celestial-orb absolute w-20 h-20 rounded-full flex items-center justify-center pointer-events-none">
+            <!-- Glow Aura -->
+            <div class="halo-pulse absolute -inset-6 rounded-full bg-inherit blur-xl opacity-75"></div>
+            <!-- Moon Shadow / Texture (Visible in Night Mode) -->
+            <div class="moon-craters absolute inset-0 rounded-full overflow-hidden">
+                <div class="absolute w-4 h-4 bg-slate-400 rounded-full top-3 left-4 blur-[0.5px]"></div>
+                <div class="absolute w-6 h-6 bg-slate-400 rounded-full bottom-3 right-3 blur-[0.5px]"></div>
+                <div class="absolute w-2.5 h-2.5 bg-slate-400 rounded-full top-8 right-6 blur-[0.5px]"></div>
+                <!-- Moon Crescent Shade Overlay -->
+                <div class="absolute -inset-1 rounded-full bg-[#030611] opacity-75 translate-x-4 -translate-y-1"></div>
+            </div>
+        </div>
+
+        <!-- Ambient Ground Horizon Fog -->
+        <div class="absolute bottom-0 inset-x-0 h-96 bg-gradient-to-t from-[var(--ambient-bg)] via-[var(--ambient-bg)]/60 to-transparent transition-all duration-700"></div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="relative z-10 max-w-5xl mx-auto w-full px-4 pt-10 pb-16 flex flex-col items-center justify-between min-h-screen">
+        
+        <!-- Header & Branding -->
+        <header class="text-center space-y-2 select-none">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-capsule text-xs tracking-widest uppercase font-semibold text-[var(--accent-solid)] border border-white/20">
+                <span class="w-2 h-2 rounded-full bg-[var(--accent-solid)] animate-ping"></span>
+                CHRONOS DIURNAL ENGINE v3.0
+            </div>
+            <h1 class="text-4xl md:text-5xl font-serif font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/60 drop-shadow-md">
+                天象时序沉浸主题控制器
+            </h1>
+            <p class="text-sm md:text-base text-[var(--text-secondary)] font-light max-w-lg mx-auto">
+                重塑时间与光影界面的交互感知 · 早晨 / 午间 / 夕阳 / 傍晚 / 夜间
+            </p>
+        </header>
+
+        <!-- CENTERPIECE: THE ULTRA COMPONENT (THEME CONTROLLER) -->
+        <div class="w-full max-w-2xl my-auto py-8">
+            
+            <!-- Capsule Selector Bar -->
+            <div class="relative p-2 rounded-full glass-panel shadow-2xl">
+                
+                <!-- Floating Morphing Highlight Pill -->
+                <div id="pillThumb" class="theme-pill-thumb absolute top-2 bottom-2 left-2 rounded-full bg-gradient-to-r from-[var(--accent-solid)] to-[var(--accent-glow)] z-0"></div>
+
+                <!-- Interactive 5-Time Nodes -->
+                <div class="relative z-10 grid grid-cols-5 items-center">
+                    
+                    <!-- 1. Dawn / 早晨 (06:00) -->
+                    <button onclick="setTheme('dawn', 0)" class="time-btn group relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-2 rounded-full text-xs font-medium transition-all duration-300 text-white/70 hover:text-white" data-index="0" title="早晨 06:00">
+                        <svg class="w-5 h-5 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                            <circle cx="12" cy="12" r="4"/>
+                        </svg>
+                        <span class="tracking-wide">早晨</span>
+                        <span class="hidden sm:inline text-[10px] opacity-60">06:00</span>
+                    </button>
+
+                    <!-- 2. Noon / 午间 (12:00) -->
+                    <button onclick="setTheme('noon', 1)" class="time-btn group relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-2 rounded-full text-xs font-medium transition-all duration-300 text-white/70 hover:text-white" data-index="1" title="午间 12:00">
+                        <svg class="w-5 h-5 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
+                        <span class="tracking-wide">午间</span>
+                        <span class="hidden sm:inline text-[10px] opacity-60">12:00</span>
+                    </button>
+
+                    <!-- 3. Sunset / 夕阳 (17:30) -->
+                    <button onclick="setTheme('sunset', 2)" class="time-btn group relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-2 rounded-full text-xs font-medium transition-all duration-300 text-white/70 hover:text-white" data-index="2" title="夕阳 17:30">
+                        <svg class="w-5 h-5 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 18a5 5 0 0 0-10 0"/>
+                            <line x1="12" y1="2" x2="12" y2="9"/>
+                            <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/>
+                            <line x1="1" y1="18" x2="3" y2="18"/>
+                            <line x1="21" y1="18" x2="23" y2="18"/>
+                            <line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+                            <line x1="23" y1="22" x2="1" y2="22"/>
+                            <polyline points="8 6 12 2 16 6"/>
+                        </svg>
+                        <span class="tracking-wide">夕阳</span>
+                        <span class="hidden sm:inline text-[10px] opacity-60">17:30</span>
+                    </button>
+
+                    <!-- 4. Dusk / 傍晚 (19:30) -->
+                    <button onclick="setTheme('dusk', 3)" class="time-btn group relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-2 rounded-full text-xs font-medium transition-all duration-300 text-white/70 hover:text-white" data-index="3" title="傍晚 19:30">
+                        <svg class="w-5 h-5 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                            <path d="M19 3v4"/>
+                            <path d="M21 5h-4"/>
+                        </svg>
+                        <span class="tracking-wide">傍晚</span>
+                        <span class="hidden sm:inline text-[10px] opacity-60">19:30</span>
+                    </button>
+
+                    <!-- 5. Night / 夜间 (00:00) -->
+                    <button onclick="setTheme('night', 4)" class="time-btn group relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-2 rounded-full text-xs font-medium transition-all duration-300 text-white/70 hover:text-white" data-index="4" title="夜间 00:00">
+                        <svg class="w-5 h-5 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                        <span class="tracking-wide">夜间</span>
+                        <span class="hidden sm:inline text-[10px] opacity-60">00:00</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dial / Scrubber Progress Indicator -->
+            <div class="mt-4 flex items-center justify-between px-6 text-xs text-[var(--text-secondary)] font-mono">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-solid)]"></span>
+                    <span id="labelState">午间光照状态</span>
+                </span>
+                <div class="flex items-center gap-4">
+                    <span>色温: <strong id="labelTemp" class="text-[var(--text-primary)]">6500K</strong></span>
+                    <span>照度: <strong id="labelLux" class="text-[var(--text-primary)]">68,000 lx</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic UI Showcase Card (Adapting in real time) -->
+        <div class="w-full max-w-3xl glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
+                <div class="flex items-center gap-4">
+                    <div id="themeIconBadge" class="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--badge-bg)] text-[var(--accent-solid)] transition-all duration-500">
+                        <svg id="badgeIconSvg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"></svg>
+                    </div>
+                    <div>
+                        <h3 id="panelTitle" class="text-xl font-bold text-[var(--text-primary)] tracking-wide">正午日照模式 (Midday Solar)</h3>
+                        <p id="panelDesc" class="text-xs sm:text-sm text-[var(--text-secondary)]">高色温自然采光，提供高对比度视效与极致清晰度</p>
+                    </div>
+                </div>
+
+                <!-- Auto Cycle Play / Pause Button -->
+                <button id="autoCycleBtn" onclick="toggleAutoCycle()" class="self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl glass-capsule text-xs font-semibold text-[var(--text-primary)] hover:bg-white/20 transition-all">
+                    <svg id="playIcon" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <span id="cycleBtnText">时序漫游演播</span>
+                </button>
+            </div>
+
+            <!-- UI Sample Elements (Interactive Playground) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- Mini Card 1 -->
+                <div class="p-4 rounded-2xl glass-capsule space-y-2">
+                    <span class="text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">界面高光色</span>
+                    <div class="flex items-center justify-between">
+                        <span id="accentHexCode" class="text-sm font-mono font-bold text-[var(--text-primary)]">#0077FF</span>
+                        <div class="w-6 h-6 rounded-full bg-[var(--accent-solid)] shadow-md transition-colors duration-500"></div>
+                    </div>
+                </div>
+
+                <!-- Mini Card 2 -->
+                <div class="p-4 rounded-2xl glass-capsule space-y-2">
+                    <span class="text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">天体角度 (Elevation)</span>
+                    <div class="flex items-center justify-between">
+                        <span id="sunAngle" class="text-sm font-mono font-bold text-[var(--text-primary)]">+86.4° Zenith</span>
+                        <span class="text-xs text-[var(--text-secondary)]">自然光轴</span>
+                    </div>
+                </div>
+
+                <!-- Mini Card 3 -->
+                <div class="p-4 rounded-2xl glass-capsule space-y-2">
+                    <span class="text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">声效反馈 (Tactile Sound)</span>
+                    <div class="flex items-center justify-between">
+                        <button onclick="toggleAudioFeedback()" id="audioToggleBtn" class="text-xs font-medium px-2.5 py-1 rounded-lg bg-[var(--badge-bg)] text-[var(--accent-solid)] transition-colors">
+                            🔊 空间声效: 开启
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Slider Demo Component -->
+            <div class="space-y-2 pt-2">
+                <div class="flex justify-between text-xs font-medium text-[var(--text-secondary)]">
+                    <span>环境明暗衰减曲线</span>
+                    <span id="sliderValueText">100% 峰值</span>
+                </div>
+                <div class="relative w-full h-2 rounded-full bg-black/20 overflow-hidden">
+                    <div id="dynamicProgress" class="h-full bg-gradient-to-r from-[var(--accent-solid)] to-[var(--accent-glow)] transition-all duration-500 rounded-full w-full"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Keyboard Shortcut Hint -->
+        <footer class="mt-8 text-center text-xs text-[var(--text-secondary)] flex items-center justify-center gap-4">
+            <span class="flex items-center gap-1">
+                <kbd class="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px]">1</kbd> - <kbd class="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px]">5</kbd> 快捷键切换
+            </span>
+            <span>•</span>
+            <span class="flex items-center gap-1">
+                <kbd class="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px]">Space</kbd> 播放/暂停
+            </span>
+        </footer>
+
+    </main>
+
+    <script>
+        // Theme Configurations
+        const THEMES = [
+            {
+                id: 'dawn',
+                name: '早晨 · Dawn',
+                timeStr: '06:00',
+                title: '清晨曦光模式 (Dawn Awakening)',
+                desc: '柔和玫瑰与暖金初光，促进皮质醇觉醒，低眩光晨间阅读。',
+                hex: '#E76F51',
+                angle: '+14.2° Horizon',
+                progress: '35%',
+                icon: '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/>',
+                temp: '4500K',
+                lux: '1,200 lx'
+            },
+            {
+                id: 'noon',
+                name: '午间 · Noon',
+                timeStr: '12:00',
+                title: '正午日照模式 (Midday Solar)',
+                desc: '全光谱纯净日光，提供最高色彩保真度与专注度效率。',
+                hex: '#0077FF',
+                angle: '+86.4° Zenith',
+                progress: '100%',
+                icon: '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
+                temp: '6500K',
+                lux: '68,000 lx'
+            },
+            {
+                id: 'sunset',
+                name: '夕阳 · Sunset',
+                timeStr: '17:30',
+                title: '夕阳余晖模式 (Golden Sunset)',
+                desc: '浓郁暖橙与晚霞渐变，过滤高能蓝光，提供舒缓惬意的电影级质感。',
+                hex: '#E85D04',
+                angle: '+08.8° Settling',
+                progress: '60%',
+                icon: '<path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/>',
+                temp: '2800K',
+                lux: '850 lx'
+            },
+            {
+                id: 'dusk',
+                name: '傍晚 · Dusk',
+                timeStr: '19:30',
+                title: '薄暮微光模式 (Twilight Dusk)',
+                desc: '深紫与幽蓝交织的赛博黄昏，营造静谧、富有艺术感的沉浸空间。',
+                hex: '#8A2BE2',
+                angle: '-05.6° Twilight',
+                progress: '25%',
+                icon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/>',
+                temp: '3200K',
+                lux: '80 lx'
+            },
+            {
+                id: 'night',
+                name: '夜间 · Night',
+                timeStr: '00:00',
+                title: '午夜极暗模式 (Deep Cosmic Night)',
+                desc: '深邃黑曜石与月光幽蓝，OLED纯黑省电，极佳的暗室护眼体验。',
+                hex: '#0EA5E9',
+                angle: '-68.0° Lunar',
+                progress: '5%',
+                icon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+                temp: '1800K',
+                lux: '0.2 lx'
+            }
+        ];
+
+        let currentIndex = 1; // Default Noon
+        let isAutoCycling = false;
+        let cycleInterval = null;
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        // Web Audio API Synthesizer for tactile feedback
+        function playChime(freq = 520, type = 'sine', duration = 0.15) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + duration);
+                
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                // Audio context may be restricted before interaction
+            }
+        }
+
+        // Apply theme function
+        function setTheme(themeId, index, triggerSound = true) {
+            currentIndex = index;
+            const theme = THEMES[index];
+            
+            // Set root attribute
+            document.documentElement.setAttribute('data-theme', theme.id);
+
+            // Update capsule highlight pill position
+            const buttons = document.querySelectorAll('.time-btn');
+            const targetBtn = buttons[index];
+            const pillThumb = document.getElementById('pillThumb');
+            
+            if (targetBtn && pillThumb) {
+                const btnLeft = targetBtn.offsetLeft;
+                const btnWidth = targetBtn.offsetWidth;
+                pillThumb.style.transform = `translateX(${btnLeft - 8}px)`;
+                pillThumb.style.width = `${btnWidth}px`;
+            }
+
+            // Update active button state
+            buttons.forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Update details UI
+            document.getElementById('labelState').textContent = `${theme.name} 光照状态`;
+            document.getElementById('labelTemp').textContent = theme.temp;
+            document.getElementById('labelLux').textContent = theme.lux;
+            document.getElementById('panelTitle').textContent = theme.title;
+            document.getElementById('panelDesc').textContent = theme.desc;
+            document.getElementById('badgeIconSvg').innerHTML = theme.icon;
+            document.getElementById('accentHexCode').textContent = theme.hex;
+            document.getElementById('sunAngle').textContent = theme.angle;
+            document.getElementById('sliderValueText').textContent = theme.progress;
+            document.getElementById('dynamicProgress').style.width = theme.progress;
+
+            // Trigger acoustic chime with customized pitch according to time
+            if (triggerSound) {
+                const pitchMap = [440, 660, 520, 392, 330];
+                playChime(pitchMap[index], 'triangle', 0.2);
+            }
+        }
+
+        // Auto Cycle Feature
+        function toggleAutoCycle() {
+            isAutoCycling = !isAutoCycling;
+            const btn = document.getElementById('autoCycleBtn');
+            const btnText = document.getElementById('cycleBtnText');
+            const playIcon = document.getElementById('playIcon');
+
+            if (isAutoCycling) {
+                btnText.textContent = "漫游中 (暂停)";
+                btn.classList.add('bg-white/30', 'ring-2', 'ring-white/40');
+                playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                cycleInterval = setInterval(() => {
+                    let next = (currentIndex + 1) % THEMES.length;
+                    setTheme(THEMES[next].id, next);
+                }, 3000);
+            } else {
+                btnText.textContent = "时序漫游演播";
+                btn.classList.remove('bg-white/30', 'ring-2', 'ring-white/40');
+                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                clearInterval(cycleInterval);
+            }
+        }
+
+        // Audio Toggle
+        function toggleAudioFeedback() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('audioToggleBtn');
+            if (soundEnabled) {
+                btn.textContent = "🔊 空间声效: 开启";
+                playChime(600, 'sine', 0.15);
+            } else {
+                btn.textContent = "🔇 空间声效: 静音";
+            }
+        }
+
+        // Keyboard navigation
+        window.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '5') {
+                const idx = parseInt(e.key) - 1;
+                setTheme(THEMES[idx].id, idx);
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                toggleAutoCycle();
+            }
+        });
+
+        // Window resize reposition
+        window.addEventListener('resize', () => {
+            setTheme(THEMES[currentIndex].id, currentIndex, false);
+        });
+
+        // Initialize state on load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTheme('noon', 1, false);
+        });
+    </script>
+</body>
+</html>
